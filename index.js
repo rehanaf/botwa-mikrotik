@@ -2,7 +2,7 @@ const whatsapp = require('velixs-md')
 const prefix = '.'
 let listmenu = ['terkoneksikerouter','dev <endpoint>']
 
-whatsapp.startSession('reyzee')
+whatsapp.startSession('rehan')
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0
 
@@ -23,6 +23,7 @@ whatsapp.onMessageReceived(async(msg)=>{
 	}
 	const apiMikrotik = async(endpoint,method = 'GET',data) => {
 		const url = 'https://cc4f0d0a674f.sn.mynetname.net/rest/'
+		let result = ''
 		switch(method) {
 			case 'PUT':
 			case 'PATCH':
@@ -35,7 +36,8 @@ whatsapp.onMessageReceived(async(msg)=>{
 						'Authorization': `Basic ${btoa('api-botwa:api-botwa')}`,
 					}
 				})
-				break
+				return result.json()
+				break;
 			default:
 				result = await fetch(`${url}${endpoint}`, {
 					method: method,
@@ -43,8 +45,19 @@ whatsapp.onMessageReceived(async(msg)=>{
 						'Authorization': `Basic ${btoa('api-botwa:api-botwa')}`,
 					}
 				})
-		}
-		return result.json()
+				let response = await result.text()
+				response = response.toString()
+				response = response.replace(/\\n/g, "\\n")
+							.replace(/\\'/g, "\\'")
+							.replace(/\\"/g, '\\"')
+							.replace(/\\&/g, "\\&")
+							.replace(/\\r/g, "\\r")
+							.replace(/\\t/g, "\\t")
+							.replace(/\\b/g, "\\b")
+							.replace(/\\f/g, "\\f");
+				response = response.replace(/[\u0000-\u0019]+/g,"");
+				return JSON.parse(response)
+			}
 	}
 
 	//menu
@@ -73,7 +86,19 @@ whatsapp.onMessageReceived(async(msg)=>{
 		for(let i=0;i<arp.length;i++){
 			num += (i<arp.length-1)?`${i},`:`${i}`
 		}
-		const updateArp = await apiMikrotik('ip/arp/remove','POST',{numbers: num})
+		console.log(num)
+		const updateArp = await apiMikrotik('ip/arp/remove','POST',{'numbers': `${num}`})
+		console.log(updateArp)
+		if(updateArp?.error) {
+			await whatsapp.sendTextMessage({
+				sessionId: msg.sessionId,
+				to: msg.key.remoteJid,
+				text: `data `,
+				answering: msg,
+				isGroup : whatsapp.isGroup(msg.key.remoteJid)
+			})
+			return
+		}
 		await whatsapp.sendTyping({
 			sessionId: msg.sessionId,
 			to: msg.key.remoteJid,
@@ -82,14 +107,40 @@ whatsapp.onMessageReceived(async(msg)=>{
 		});
 		arp = await apiMikrotik('ip/arp')
 		const dhcp = await apiMikrotik('ip/dhcp-server/lease')
-		let response = '\t[ _*TERKONEKSI KE ROUTER*_ ]\n' 
+		let response = '\t[ _*TERKONEKSI KE ROUTER*_ ]' 
+		const compare = (a, b) => {
+			if(a.server<b.server)return -1;
+			if(a.server>b.server)return 0;
+			return 1;
+		}
+		let data = []
 		arp.forEach(ip => {
 			dhcp.forEach(cp => {
 				if(ip['address'] == cp['address']){
-					response += `\n• ${cp['host-name']} - _${cp['address']}_`
+					data.push({
+						'name':cp["comment"]?cp["comment"]:cp['host-name'],
+						'address':cp['address'],
+						'server':cp['server']
+					})
 				}
 			})
 		})
+		data = data.sort(compare)
+		for(let i=0;i<data.length;i++){
+			if(typeof(data[i-1])!='undefined'){
+				if(data[i-1].server!=data[i].server){
+					response += `\n\n*${data[i].server}*`
+				}
+				response += `\n• ${data[i].name} - _${data[i].address}_`
+			}
+		}
+		// arp.forEach(ip => {
+		// 	dhcp.forEach(cp => {
+		// 		if(ip['address'] == cp['address']){
+		// 			response += `\n• ${cp["comment"]?cp["comment"]:cp['host-name']} - _${cp['address']}_`
+		// 		}
+		// 	})
+		// })
 		await whatsapp.sendTextMessage({
 			sessionId: msg.sessionId,
 			to: msg.key.remoteJid,
