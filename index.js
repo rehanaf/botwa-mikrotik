@@ -2,7 +2,7 @@ const whatsapp = require('velixs-md')
 const prefix = '.'
 let listmenu = ['terkoneksikerouter','dev <endpoint>']
 
-whatsapp.startSession('rehan')
+whatsapp.startSession('cyberitnet')
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0
 
@@ -22,7 +22,7 @@ whatsapp.onMessageReceived(async(msg)=>{
 		})
 	}
 	const apiMikrotik = async(endpoint,method = 'GET',data) => {
-		const url = 'https://cc4f0d0a674f.sn.mynetname.net/rest/'
+		const url = 'https://hd9085br0th.sn.mynetname.net/rest/'
 		let result = ''
 		switch(method) {
 			case 'PUT':
@@ -81,6 +81,7 @@ whatsapp.onMessageReceived(async(msg)=>{
 	if(msg.message?.extendedTextMessage?.text == `${prefix}terkoneksikerouter` || msg.message?.conversation == `${prefix}terkoneksikerouter`) {
 		console.log('.terkoneksikerouter')
 		loading()
+		
 		let arp = await apiMikrotik('ip/arp')
 		let num = ''
 		for(let i=0;i<arp.length;i++){
